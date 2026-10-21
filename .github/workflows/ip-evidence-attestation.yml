@@ -2,7 +2,12 @@ name: IP Evidence Attestation
 
 on:
   workflow_dispatch:
-  # Manual trigger only. Do not automatically publish evidence on every push.
+  push:
+    branches: [main]
+    paths:
+      - 'IP/OWNERSHIP_EVIDENCE.md'
+      - '.github/workflows/ip-evidence-attestation.yml'
+  # Push trigger is path-limited so the first merge can produce a real attestation.
 
 permissions:
   contents: read
