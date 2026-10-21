@@ -2,13 +2,19 @@ import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import { mkdtempSync, readFileSync, existsSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, existsSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const tempDir = mkdtempSync(join(tmpdir(), "csg-mcp-gateway-"));
 const auditPath = join(tempDir, "audit.jsonl");
 const effectPath = join(tempDir, "tool-effects.jsonl");
+const filesystemRoot = join(tempDir, "root");
+const outsidePath = join(tempDir, "outside-secret.txt");
+mkdirSync(filesystemRoot, { recursive: true });
+writeFileSync(join(filesystemRoot, "README.md"), "safe test file");
+writeFileSync(outsidePath, "outside secret");
+symlinkSync(outsidePath, join(filesystemRoot, "leak"));
 const fakeServer = `
   import { createInterface } from "node:readline";
   import { appendFileSync } from "node:fs";
@@ -54,7 +60,7 @@ before(async () => {
       CSG_WORKSPACE_ID: "test-workspace",
       CSG_AGENT_ID: "test-agent",
       CSG_AUDIT_PATH: auditPath,
-      CSG_FILESYSTEM_ROOT: process.cwd(),
+      CSG_FILESYSTEM_ROOT: filesystemRoot,
       FAKE_EFFECT_PATH: effectPath,
     },
     stdio: ["pipe", "pipe", "pipe"],
@@ -117,6 +123,21 @@ test("a filesystem path outside the configured root is blocked before forwarding
   assert.equal(response.result?.isError, true);
   assert.match(response.result?.content?.[0]?.text ?? "", /filesystem_path_outside_root/);
   assert.equal(existsSync(effectPath), false, "out-of-root file access must have zero upstream side effects");
+});
+
+test("a symlink resolving outside the configured root is blocked", async () => {
+  proxy.stdin.write(JSON.stringify({
+    jsonrpc: "2.0",
+    id: 4,
+    method: "tools/call",
+    params: { name: "read_file", arguments: { path: "leak" } },
+  }) + "\\n");
+
+  const response = await nextMessage();
+  assert.equal(response.id, 4);
+  assert.equal(response.result?.isError, true);
+  assert.match(response.result?.content?.[0]?.text ?? "", /filesystem_path_outside_root/);
+  assert.equal(readFileSync(effectPath, "utf8").trim().split("\\n").length, 0);
 });
 
 test("an allowed read-only tool call is forwarded and produces durable decision/result records", async () => {
