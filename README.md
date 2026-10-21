@@ -21,7 +21,7 @@ The dev server listens on port 8080.
 
 ## Real MCP execution boundary (experimental)
 
-A stdio gateway is available at `scripts/csg-mcp-proxy.mjs`. It evaluates each JSON-RPC `tools/call` **before forwarding it** to the upstream MCP server. Only a decision exactly equal to `allow` is forwarded; `deny`, `ask`, `sandbox`, `defer`, missing identity, malformed calls, evaluation errors, and audit-write errors fail closed. The decision record is appended and fsynced before an allowed call is sent upstream.
+A stdio gateway is available at `scripts/csg-mcp-proxy.mjs`. It evaluates each JSON-RPC `tools/call` **before forwarding it** to the upstream MCP server. Only a decision exactly equal to `allow` is forwarded; `deny`, `ask`, `sandbox`, `defer`, missing identity, malformed calls, evaluation errors, and audit-write errors fail closed. The decision record is appended and fsynced before an allowed call is sent upstream. File tools (`read_file`, `list_directory`, `write_file`, `delete_file`) additionally require `CSG_FILESYSTEM_ROOT`; paths resolving outside that root are blocked before forwarding.
 
 Example (replace the upstream command with the MCP server you actually use):
 
