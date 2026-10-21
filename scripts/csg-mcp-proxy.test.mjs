@@ -15,7 +15,7 @@ mkdirSync(filesystemRoot, { recursive: true });
 writeFileSync(join(filesystemRoot, "README.md"), "safe test file");
 writeFileSync(outsidePath, "outside secret");
 symlinkSync(outsidePath, join(filesystemRoot, "leak"));
-const fakeServer = `
+const fakeServer = String.raw`
   import { createInterface } from "node:readline";
   import { appendFileSync } from "node:fs";
   const rl = createInterface({ input: process.stdin, crlfDelay: Infinity });
