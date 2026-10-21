@@ -74,7 +74,8 @@ Redact confidential identifiers in public evidence. Do not fabricate customer na
 
 Current known status when this document was authored:
 - Engine unit-level security contract: **NOT_RUN in CI** until this branch's workflow completes.
-- Real external tool enforcement / bypass / restart persistence: **UNKNOWN**.
+- Proxy-level enforcement against a fake upstream: **NOT_RUN in CI** until this branch's workflow completes.
+- Real upstream MCP integration, direct-connection bypass prevention, and production restart persistence: **UNKNOWN**.
 - Commercial license approval: **BLOCKED** pending rights-holder decision and dependency review.
 - Customer acceptance: **BLOCKED** pending a real customer-run test and written acceptance.
 - Paid pilot/payment: **NOT EVIDENCED**.
