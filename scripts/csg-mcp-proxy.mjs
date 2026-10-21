@@ -10,7 +10,7 @@
  * upstream MCP server. Only decisions equal to "allow" are forwarded.
  */
 import { appendFileSync, closeSync, fchmodSync, fsyncSync, mkdirSync, openSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { randomUUID } from "node:crypto";
@@ -20,6 +20,8 @@ const AUDIT_PATH = resolve(process.env.CSG_AUDIT_PATH || ".csg/audit.jsonl");
 const WORKSPACE_ID = process.env.CSG_WORKSPACE_ID || "";
 const AGENT_ID = process.env.CSG_AGENT_ID || "";
 const TASK_ID = process.env.CSG_TASK_ID || "";
+const FILESYSTEM_ROOT = process.env.CSG_FILESYSTEM_ROOT ? resolve(process.env.CSG_FILESYSTEM_ROOT) : "";
+const FILESYSTEM_TOOLS = new Set(["read_file", "list_directory", "write_file", "delete_file"]);
 const POLICY_TAGS = (process.env.CSG_POLICY_TAGS || "")
   .split(",")
   .map((tag) => tag.trim())
@@ -42,6 +44,16 @@ function appendAudit(record) {
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function filesystemGuard(toolName, params) {
+  if (!FILESYSTEM_TOOLS.has(toolName)) return undefined;
+  if (!FILESYSTEM_ROOT) return "filesystem_root_not_configured";
+  if (typeof params.path !== "string" || !params.path.trim()) return "filesystem_path_missing";
+  const target = resolve(FILESYSTEM_ROOT, params.path);
+  const rel = relative(FILESYSTEM_ROOT, target);
+  if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return "filesystem_path_outside_root";
+  return undefined;
 }
 
 function jsonRpcError(id, code, message, data) {
@@ -222,7 +234,8 @@ async function main() {
     }
 
     const { sanitized, decision } = evaluated;
-    const allowed = Boolean(id !== null && WORKSPACE_ID && AGENT_ID && toolName && isObject(rawArgs) && decision.decision === "allow");
+    const runtimeBlockReason = filesystemGuard(toolName, toolParams);
+    const allowed = Boolean(!runtimeBlockReason && id !== null && WORKSPACE_ID && AGENT_ID && toolName && isObject(rawArgs) && decision.decision === "allow");
     const record = {
       record_type: "decision",
       event_id: eventId,
@@ -233,7 +246,9 @@ async function main() {
       sanitized_request: sanitized,
       decision,
       outcome: allowed ? "allowed_for_execution" : "blocked",
-      block_reason: allowed ? undefined : id === null
+      enforcement_decision: allowed ? "allow" : "deny",
+      runtime_guard: runtimeBlockReason ? "filesystem_root" : undefined,
+      block_reason: allowed ? undefined : runtimeBlockReason || (id === null
         ? "missing_jsonrpc_request_id"
         : !WORKSPACE_ID || !AGENT_ID
         ? "runtime_identity_missing"
@@ -261,7 +276,7 @@ async function main() {
           result: {
             content: [{
               type: "text",
-              text: `CSG blocked tool "${toolName || "[invalid]"}": ${record.block_reason}. Decision=${decision.decision}. ${decision.rationale}`,
+              text: `CSG blocked tool "${toolName || "[invalid]"}": ${record.block_reason}. Enforcement=${record.enforcement_decision}; engineDecision=${decision.decision}. ${decision.rationale}`,
             }],
             isError: true,
           },
