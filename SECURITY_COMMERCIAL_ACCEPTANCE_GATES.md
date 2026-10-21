@@ -19,6 +19,8 @@ These tests exercise the decision engine via Vite's SSR module loader. They do *
 
 ## 2. Required independent runtime proof (not yet established)
 
+The repository's own RFC-0000.5 explicitly says enforcement is out of scope until Go and that this build has no live AgentRQ socket. Therefore, the current branch can test the decision engine but cannot honestly demonstrate end-to-end blocking in an external tool runtime. The UI's `enforce` mode is a decision-engine mode, not proof of an external execution interlock.
+
 Run only against a dedicated, non-production test tenant and a harmless test tool. Record timestamp, commit SHA, environment identity, sanitized request, gate response, tool-side effect counter, durable event ID, and replay result. Do not include credentials or real personal data.
 
 | Case | Required observable result |
