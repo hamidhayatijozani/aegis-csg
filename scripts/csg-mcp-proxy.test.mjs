@@ -22,10 +22,10 @@ const fakeServer = `
   rl.on("line", (line) => {
     const msg = JSON.parse(line);
     if (msg.method === "tools/call") {
-      appendFileSync(process.env.FAKE_EFFECT_PATH, JSON.stringify({id: msg.id, name: msg.params?.name}) + "\\n");
-      process.stdout.write(JSON.stringify({jsonrpc:"2.0", id:msg.id, result:{content:[{type:"text",text:"executed"}]}}) + "\\n");
+      appendFileSync(process.env.FAKE_EFFECT_PATH, JSON.stringify({id: msg.id, name: msg.params?.name}) + "\n");
+      process.stdout.write(JSON.stringify({jsonrpc:"2.0", id:msg.id, result:{content:[{type:"text",text:"executed"}]}}) + "\n");
     } else if (Object.hasOwn(msg, "id")) {
-      process.stdout.write(JSON.stringify({jsonrpc:"2.0", id:msg.id, result:{}}) + "\\n");
+      process.stdout.write(JSON.stringify({jsonrpc:"2.0", id:msg.id, result:{}}) + "\n");
     }
   });
 `;
@@ -116,7 +116,7 @@ test("a filesystem path outside the configured root is blocked before forwarding
     id: 3,
     method: "tools/call",
     params: { name: "read_file", arguments: { path: "/etc/shadow" } },
-  }) + "\\n");
+  }) + "\n");
 
   const response = await nextMessage();
   assert.equal(response.id, 3);
@@ -131,7 +131,7 @@ test("a symlink resolving outside the configured root is blocked", async () => {
     id: 4,
     method: "tools/call",
     params: { name: "read_file", arguments: { path: "leak" } },
-  }) + "\\n");
+  }) + "\n");
 
   const response = await nextMessage();
   assert.equal(response.id, 4);
