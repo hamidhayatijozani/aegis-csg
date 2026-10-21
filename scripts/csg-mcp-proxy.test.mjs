@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { mkdtempSync, readFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 
 const tempDir = mkdtempSync(join(tmpdir(), "csg-mcp-gateway-"));
 const auditPath = join(tempDir, "audit.jsonl");
@@ -54,6 +54,7 @@ before(async () => {
       CSG_WORKSPACE_ID: "test-workspace",
       CSG_AGENT_ID: "test-agent",
       CSG_AUDIT_PATH: auditPath,
+      CSG_FILESYSTEM_ROOT: process.cwd(),
       FAKE_EFFECT_PATH: effectPath,
     },
     stdio: ["pipe", "pipe", "pipe"],
@@ -103,6 +104,21 @@ test("a destructive tool call is blocked before the upstream MCP server receives
   assert.equal(existsSync(effectPath), false, "denied tool must have zero upstream side effects");
 });
 
+test("a filesystem path outside the configured root is blocked before forwarding", async () => {
+  proxy.stdin.write(JSON.stringify({
+    jsonrpc: "2.0",
+    id: 3,
+    method: "tools/call",
+    params: { name: "read_file", arguments: { path: "/etc/shadow" } },
+  }) + "\\n");
+
+  const response = await nextMessage();
+  assert.equal(response.id, 3);
+  assert.equal(response.result?.isError, true);
+  assert.match(response.result?.content?.[0]?.text ?? "", /filesystem_path_outside_root/);
+  assert.equal(existsSync(effectPath), false, "out-of-root file access must have zero upstream side effects");
+});
+
 test("an allowed read-only tool call is forwarded and produces durable decision/result records", async () => {
   proxy.stdin.write(JSON.stringify({
     jsonrpc: "2.0",
@@ -124,6 +140,9 @@ test("an allowed read-only tool call is forwarded and produces durable decision/
   const denied = records.find((r) => r.record_type === "decision" && r.tool_name === "exec_command");
   const allowed = records.find((r) => r.record_type === "decision" && r.tool_name === "read_file");
   assert.equal(denied?.outcome, "blocked");
+  const pathDenied = records.find((r) => r.record_type === "decision" && r.tool_name === "read_file" && r.runtime_guard === "filesystem_root");
+  assert.equal(pathDenied?.block_reason, "filesystem_path_outside_root");
+  assert.equal(pathDenied?.enforcement_decision, "deny");
   assert.equal(allowed?.outcome, "allowed_for_execution");
   assert.ok(records.some((r) => r.record_type === "execution_result" && r.event_id === allowed.event_id));
 });
