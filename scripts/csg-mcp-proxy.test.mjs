@@ -137,7 +137,7 @@ test("a symlink resolving outside the configured root is blocked", async () => {
   assert.equal(response.id, 4);
   assert.equal(response.result?.isError, true);
   assert.match(response.result?.content?.[0]?.text ?? "", /filesystem_path_outside_root/);
-  assert.equal(readFileSync(effectPath, "utf8").trim().split("\\n").length, 0);
+  assert.equal(existsSync(effectPath), false, "symlink escape must have zero upstream side effects");
 });
 
 test("an allowed read-only tool call is forwarded and produces durable decision/result records", async () => {
