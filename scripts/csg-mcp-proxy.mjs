@@ -9,7 +9,7 @@
  * The agent must connect to this process instead of connecting directly to the
  * upstream MCP server. Only decisions equal to "allow" are forwarded.
  */
-import { appendFileSync, closeSync, fsyncSync, mkdirSync, openSync } from "node:fs";
+import { appendFileSync, closeSync, fchmodSync, fsyncSync, mkdirSync, openSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
@@ -222,7 +222,7 @@ async function main() {
     }
 
     const { sanitized, decision } = evaluated;
-    const allowed = Boolean(WORKSPACE_ID && AGENT_ID && toolName && isObject(rawArgs) && decision.decision === "allow");
+    const allowed = Boolean(id !== null && WORKSPACE_ID && AGENT_ID && toolName && isObject(rawArgs) && decision.decision === "allow");
     const record = {
       record_type: "decision",
       event_id: eventId,
@@ -233,7 +233,9 @@ async function main() {
       sanitized_request: sanitized,
       decision,
       outcome: allowed ? "allowed_for_execution" : "blocked",
-      block_reason: allowed ? undefined : !WORKSPACE_ID || !AGENT_ID
+      block_reason: allowed ? undefined : id === null
+        ? "missing_jsonrpc_request_id"
+        : !WORKSPACE_ID || !AGENT_ID
         ? "runtime_identity_missing"
         : !toolName || !isObject(rawArgs)
           ? "invalid_tool_call"
