@@ -9,8 +9,8 @@
  * The agent must connect to this process instead of connecting directly to the
  * upstream MCP server. Only decisions equal to "allow" are forwarded.
  */
-import { appendFileSync, closeSync, fchmodSync, fsyncSync, mkdirSync, openSync } from "node:fs";
-import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { appendFileSync, closeSync, fchmodSync, fsyncSync, mkdirSync, openSync, realpathSync } from "node:fs";
+import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { randomUUID } from "node:crypto";
@@ -50,8 +50,30 @@ function filesystemGuard(toolName, params) {
   if (!FILESYSTEM_TOOLS.has(toolName)) return undefined;
   if (!FILESYSTEM_ROOT) return "filesystem_root_not_configured";
   if (typeof params.path !== "string" || !params.path.trim()) return "filesystem_path_missing";
-  const target = resolve(FILESYSTEM_ROOT, params.path);
-  const rel = relative(FILESYSTEM_ROOT, target);
+
+  let root;
+  try {
+    root = realpathSync(FILESYSTEM_ROOT);
+  } catch {
+    return "filesystem_root_unavailable";
+  }
+
+  const target = resolve(root, params.path);
+  let checkedTarget;
+  try {
+    checkedTarget = realpathSync(target);
+  } catch {
+    // A new file may not exist yet, but its parent must exist and resolve
+    // inside the configured root. Other missing paths fail closed.
+    if (toolName !== "write_file") return "filesystem_target_not_found";
+    try {
+      checkedTarget = resolve(realpathSync(dirname(target)), basename(target));
+    } catch {
+      return "filesystem_parent_not_found";
+    }
+  }
+
+  const rel = relative(root, checkedTarget);
   if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return "filesystem_path_outside_root";
   return undefined;
 }
