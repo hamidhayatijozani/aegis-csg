@@ -159,7 +159,7 @@ test("an allowed read-only tool call is forwarded and produces durable decision/
 
   const records = readFileSync(auditPath, "utf8").trim().split("\n").map(JSON.parse);
   const denied = records.find((r) => r.record_type === "decision" && r.tool_name === "exec_command");
-  const allowed = records.find((r) => r.record_type === "decision" && r.tool_name === "read_file");
+  const allowed = records.find((r) => r.record_type === "decision" && r.tool_name === "read_file" && r.outcome === "allowed_for_execution");
   assert.equal(denied?.outcome, "blocked");
   const pathDenied = records.find((r) => r.record_type === "decision" && r.tool_name === "read_file" && r.runtime_guard === "filesystem_root");
   assert.equal(pathDenied?.block_reason, "filesystem_path_outside_root");
