@@ -1,0 +1,73 @@
+name: IP Evidence Attestation
+
+on:
+  workflow_dispatch:
+  # Manual trigger only. Do not automatically publish evidence on every push.
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  attest:
+    name: Build hash manifest and keyless transparency attestation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact source revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Build source manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ip-evidence-output
+          {
+            printf 'repository=%s\n' "$GITHUB_REPOSITORY"
+            printf 'commit=%s\n' "$GITHUB_SHA"
+            printf 'ref=%s\n' "$GITHUB_REF"
+            printf 'captured_at_utc=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            printf 'manifest_version=1\n'
+            printf '\n[file_sha256]\n'
+          } > ip-evidence-output/manifest.txt
+
+          # Hash tracked source files only. Never copy file contents into the artifact.
+          # Exclude credentials, private keys/certificates, environment files, and data dumps.
+          git ls-files -z             | while IFS= read -r -d '' file; do
+                case "$file" in
+                  .env|.env.*|*/.env|*/.env.*|*secret*|*credential*|*token*|*private*key*|*.pem|*.key|*.p12|*.pfx|*.jks|*.keystore|*.sqlite|*.db|*.parquet|*.csv|*.jsonl|*.dump|*.sql.gz)
+                    continue
+                    ;;
+                esac
+                [ -f "$file" ] || continue
+                sha256sum -- "$file"
+              done >> ip-evidence-output/manifest.txt
+
+          sha256sum ip-evidence-output/manifest.txt > ip-evidence-output/manifest.sha256
+          git log -1 --format='commit_author=%an%ncommit_author_email=%ae%ncommit_date=%aI%ncommit_subject=%s'             > ip-evidence-output/commit-metadata.txt
+          cat ip-evidence-output/manifest.sha256
+
+      - name: Sign manifest with GitHub OIDC identity and publish transparency entry
+        shell: bash
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          set -euo pipefail
+          cosign sign-blob --yes             --bundle ip-evidence-output/manifest.sigstore.json             ip-evidence-output/manifest.txt
+
+          test -s ip-evidence-output/manifest.sigstore.json
+          cosign verify-blob             --bundle ip-evidence-output/manifest.sigstore.json             --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/ip-evidence-attestation.yml@.*$"             --certificate-oidc-issuer "https://token.actions.githubusercontent.com"             ip-evidence-output/manifest.txt
+
+      - name: Upload evidence bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ip-evidence-${{ github.sha }}
+          path: ip-evidence-output/
+          if-no-files-found: error
+          retention-days: 90
