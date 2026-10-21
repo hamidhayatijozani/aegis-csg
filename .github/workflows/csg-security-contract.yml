@@ -1,0 +1,30 @@
+name: CSG Security Contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  security-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Run focused CSG security contract tests
+        run: node --test scripts/csg-security-contract.test.mjs
+      - name: Type-check
+        run: npm run typecheck
+      - name: Build production bundle without database migration
+        run: npm run build:dev
