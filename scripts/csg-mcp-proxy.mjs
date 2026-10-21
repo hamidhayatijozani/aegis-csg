@@ -256,7 +256,7 @@ async function main() {
           ? "invalid_tool_call"
           : decision.decision !== "allow"
             ? decision.decision
-            : "unknown",
+            : "unknown"),
     };
 
     try {
