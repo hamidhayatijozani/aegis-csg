@@ -1,4 +1,4 @@
-export const ENGINE_VERSION = "csg-0.5.0";
+export const ENGINE_VERSION = "csg-0.6.0";
 export const POLICY_VERSION = "policy-poc-1";
 
 export type Decision = "allow" | "deny" | "ask" | "sandbox" | "defer";
@@ -114,7 +114,7 @@ export const FORMULAS = {
   S: "1 − risk  (safety slack)",
   T: "evidence × (1 − risk)  (trust under uncertainty)",
   decision:
-    "forbidden → deny; risk ≥ deny → deny; evidence < min ∧ risk > 0.28 → ask; risk ≥ sandbox → sandbox; YOLO allow iff risk < yolo_risk ∧ evidence ≥ yolo_evidence ∧ policy_fit ≥ yolo_policy; else allow",
+    "incomplete → defer; forbidden pattern → deny; thin context on a mutating tool → ask; exec, deploy, email, unscoped network, or path escape → ask; scoped HTTP and read-class tools → allow; write, slack, and non-destructive SQL → sandbox; unknown tool → ask. Risk is recorded, but it does not deny a call that matched no forbidden pattern. YOLO may still downgrade allow to ask.",
 };
 
 export const PRINCIPLES = [

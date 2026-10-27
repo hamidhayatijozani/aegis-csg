@@ -127,7 +127,7 @@ export const RFCS: RfcDoc[] = [
     scope: "deny, ask, sandbox, min evidence, three YOLO gates, timeout, fallback decision.",
     inputs: "Policy object plus the four scores and the forbidden flag.",
     outputs: "One of allow, deny, ask, sandbox, defer, plus a mitigation action.",
-    computation: "Ordered: incomplete schema, forbidden, deny threshold, low evidence, ask threshold, sandbox threshold, YOLO gates, else allow.",
+    computation: "Ordered: incomplete schema, forbidden pattern, thin context, tool class (exec/deploy/email/unscoped/escape ask; scoped reads allow; write/slack/select sandbox). Risk is stored on the decision. It does not deny a call with no forbidden pattern. YOLO can only downgrade allow to ask.",
     complexity: "Constant comparisons.",
     failure: "If mode is observe, the decision is still computed but the rationale states that AgentRQ is not blocked.",
     groundTruth: "Gold labels follow the same order for the built-in scenarios.",

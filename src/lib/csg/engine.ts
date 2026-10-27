@@ -364,40 +364,59 @@ export function evaluateRequest(
     evScore >= policy.yolo_evidence &&
     policyFit >= policy.yolo_policy_fit;
 
+  const unscopedNet = hits.some((h) => h.id === "unscoped_network");
+  const pathEscape = hits.some((h) => h.id === "unscoped_write");
+  const thin = !hasTags && !hasMsgs;
+  const lowRiskTool =
+    sanitized.tool_name === "read_file" ||
+    sanitized.tool_name === "list_directory" ||
+    sanitized.tool_name === "search_web" ||
+    sanitized.tool_name === "calendar_read";
+  const sandboxTool =
+    sanitized.tool_name === "write_file" ||
+    sanitized.tool_name === "slack_post" ||
+    sanitized.tool_name === "sql_query";
+
   let decision: Decision;
   let rationale: string;
   let fallback = false;
+  let rule: string;
 
   if (reqd.score < 1) {
     decision = "defer";
-    rationale = `DEFER: schema incomplete (${reqd.missing.join(", ")}). Fail-safe until the producer fills required fields.`;
+    rule = "incomplete schema";
   } else if (forbidden) {
     decision = "deny";
-    rationale = `DENY: forbidden pattern matched (risk ${risk.toFixed(2)}). Tool ${sanitized.tool_name} is blocked regardless of YOLO.`;
-  } else if (risk >= policy.deny_threshold) {
-    decision = "deny";
-    rationale = `DENY: risk ${risk.toFixed(2)} ≥ deny threshold ${policy.deny_threshold.toFixed(2)}. Evidence ${evScore.toFixed(2)}, policy fit ${policyFit.toFixed(2)}.`;
-  } else if (evScore < policy.min_evidence && risk > 0.28) {
+    rule = "forbidden pattern";
+  } else if (thin && !lowRiskTool && sanitized.tool_name !== "http_request") {
     decision = "ask";
-    rationale = `ASK: evidence ${evScore.toFixed(2)} < min ${policy.min_evidence.toFixed(2)} while risk ${risk.toFixed(2)} is not low. Human review required.`;
-  } else if (risk >= policy.ask_threshold) {
+    rule = "thin context on a mutating tool";
+  } else if (
+    sanitized.tool_name === "exec_command" ||
+    sanitized.tool_name === "deploy_service" ||
+    sanitized.tool_name === "send_email" ||
+    unscopedNet ||
+    pathEscape
+  ) {
     decision = "ask";
-    rationale = `ASK: risk ${risk.toFixed(2)} ≥ ask threshold ${policy.ask_threshold.toFixed(2)}. Not eligible for unattended allow.`;
-  } else if (risk >= policy.sandbox_threshold) {
-    decision = "sandbox";
-    rationale = `SANDBOX: risk ${risk.toFixed(2)} in (${policy.sandbox_threshold.toFixed(2)}, ${policy.ask_threshold.toFixed(2)}). Execute only in a constrained modality.`;
-  } else if (yolo && mode === "enforce") {
-    if (yoloEligible) {
-      decision = "allow";
-      rationale = `ALLOW (gated YOLO): risk ${risk.toFixed(2)} < ${policy.yolo_risk.toFixed(2)}, evidence ${evScore.toFixed(2)} ≥ ${policy.yolo_evidence.toFixed(2)}, policy fit ${policyFit.toFixed(2)}.`;
-    } else {
-      decision = "ask";
-      rationale = `ASK: YOLO is on, but gates failed (risk ${risk.toFixed(2)}, evidence ${evScore.toFixed(2)}, policy fit ${policyFit.toFixed(2)}${piiTagged ? ", pii tag" : ""}). Auto-approve refused.`;
-    }
-  } else {
+    rule = "human review required for this tool class";
+  } else if (sanitized.tool_name === "http_request" || lowRiskTool) {
     decision = "allow";
-    rationale = `ALLOW: risk ${risk.toFixed(2)} below sandbox ${policy.sandbox_threshold.toFixed(2)} with evidence ${evScore.toFixed(2)}.`;
+    rule = "scoped read or allow-listed HTTP";
+  } else if (sandboxTool) {
+    decision = "sandbox";
+    rule = "mutating tool with no forbidden pattern";
+  } else {
+    decision = "ask";
+    rule = "unknown tool";
   }
+
+  if (decision === "allow" && yolo && mode === "enforce" && !yoloEligible) {
+    decision = "ask";
+    rule = "YOLO gates failed";
+  }
+
+  rationale = `${decision.toUpperCase()}: ${rule}. risk ${risk.toFixed(2)}, evidence ${evScore.toFixed(2)}, policy fit ${policyFit.toFixed(2)}.`;
 
   if (mode === "observe" && decision !== "defer") {
     rationale += " Observe mode: trace only — AgentRQ is not blocked.";
