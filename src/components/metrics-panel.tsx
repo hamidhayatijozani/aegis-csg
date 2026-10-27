@@ -1,4 +1,5 @@
 import { METRIC_TRACE, goNoGo, summarize } from "@/lib/csg/metrics";
+import type { Decision } from "@/lib/csg/types";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
