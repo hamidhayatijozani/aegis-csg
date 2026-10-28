@@ -39,14 +39,14 @@ export function ThothDesk() {
         <div className="h-52">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chart}>
-              <CartesianGrid stroke="#2a2a30" vertical={false} />
+              <CartesianGrid stroke="var(--color-border)" vertical={false} />
               <XAxis dataKey="i" hide />
-              <YAxis domain={["auto", "auto"]} width={48} stroke="#6e6e77" fontSize={11} />
+              <YAxis domain={["auto", "auto"]} width={48} stroke="var(--color-subtle)" fontSize={11} />
               <Tooltip
-                contentStyle={{ background: "#111114", border: "1px solid #2a2a30", borderRadius: 8 }}
-                labelStyle={{ color: "#9a9aa3" }}
+                contentStyle={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 8 }}
+                labelStyle={{ color: "var(--color-muted)" }}
               />
-              <Line type="monotone" dataKey="close" stroke="#d4d7de" dot={false} strokeWidth={1.5} />
+              <Line type="monotone" dataKey="close" stroke="var(--color-accent)" dot={false} strokeWidth={1.5} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -56,13 +56,13 @@ export function ThothDesk() {
         <div className="h-40">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chart}>
-              <CartesianGrid stroke="#2a2a30" vertical={false} />
+              <CartesianGrid stroke="var(--color-border)" vertical={false} />
               <XAxis dataKey="i" hide />
-              <YAxis domain={["auto", "auto"]} width={56} stroke="#6e6e77" fontSize={11} />
+              <YAxis domain={["auto", "auto"]} width={56} stroke="var(--color-subtle)" fontSize={11} />
               <Tooltip
-                contentStyle={{ background: "#111114", border: "1px solid #2a2a30", borderRadius: 8 }}
+                contentStyle={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 8 }}
               />
-              <Line type="monotone" dataKey="equity" stroke="#7d9a7a" dot={false} strokeWidth={1.5} />
+              <Line type="monotone" dataKey="equity" stroke="var(--color-allow)" dot={false} strokeWidth={1.5} />
             </LineChart>
           </ResponsiveContainer>
         </div>
