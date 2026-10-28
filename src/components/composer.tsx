@@ -69,6 +69,7 @@ export function Composer() {
           value={params}
           onChange={(e) => setParams(e.target.value)}
           rows={3}
+          suppressHydrationWarning
           className="mt-1 w-full rounded-md border border-border bg-raised px-2 py-2 font-mono text-xs text-fg"
         />
       </label>
