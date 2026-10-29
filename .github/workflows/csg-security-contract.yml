@@ -23,7 +23,7 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
       - name: Run focused CSG security contract tests
-        run: node --test scripts/csg-security-contract.test.mjs
+        run: node --test scripts/csg-security-contract.test.mjs scripts/csg-mcp-proxy.test.mjs
       - name: Type-check
         run: npm run typecheck
       - name: Build production bundle without database migration
